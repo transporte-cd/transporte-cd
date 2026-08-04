@@ -858,7 +858,7 @@ function lerp(a,b,t){ return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t]; }
 
 function el(id){ return document.getElementById(id); }
 function todayStr(){
-  var d = new Date('2026-07-11T00:00:00');
+  var d = new Date();
   return d.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 }
 el('today').textContent = todayStr();
@@ -1425,7 +1425,7 @@ function renderCunas(){
     kpiCard('Liberadas', state.cunas.filter(function(c){return c.estado==='Liberado';}).length, 'andén disponible', 'fa-circle-check', {bg:'var(--green-bg)',fg:'var(--green-text)'});
 
   el('tbl-cunas').innerHTML = tblHtml(['Andén','Patente','Fecha','Hora','Estado','Foto'], rows.map(function(c){
-    return [c.anden, c.patente, c.fecha, c.hora, '<span class="badge '+(c.estado==='En andén'?'b-PENDIENTE':'b-ENTREGADO')+'">'+c.estado+'</span>', c.foto?'<i class="fa-solid fa-image" style="color:var(--green-text)"></i>':'<i class="fa-solid fa-image-slash" style="color:var(--text-3)"></i>'];
+    return [c.anden, c.patente, c.fecha, c.hora, '<span class="badge '+(c.estado==='En andén'?'b-PENDIENTE':'b-ENTREGADO')+'">'+c.estado+'</span>', (c.foto&&String(c.foto).indexOf('http')===0)?'<img src="'+c.foto+'" style="width:32px;height:32px;object-fit:cover;border-radius:4px;cursor:pointer" onclick="window.open(this.src,\'_blank\')">':(c.foto?'<i class="fa-solid fa-image" style="color:var(--green-text)"></i>':'<i class="fa-solid fa-image-slash" style="color:var(--text-3)"></i>')];
   }));
 }
 
@@ -1532,7 +1532,7 @@ function closeModal(type){ el('modal-'+type).classList.remove('show'); }
 var SHEETS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbw5HTYFDxUnYIacC_6LDjk_qsQnaBTa0b20OahGAptdGr8jT0Jt1O693-EVTuDfFrye/exec';
 function sendToSheet(tipo, data){
   try{
-    var payload = Object.assign({tipo:tipo}, data);
+    var payload = {modulo: tipo, datos: data};
     fetch(SHEETS_WEBAPP_URL, {
       method:'POST',
       mode:'no-cors',
@@ -1551,19 +1551,7 @@ function mapSheetRow(r){
     cc: r.CC||'', estado: r.Estado
   };
 }
-function loadProgramacionFromSheet(){
-  fetch(SHEETS_WEBAPP_URL + '?action=programacion')
-    .then(function(r){ return r.json(); })
-    .then(function(data){
-      if(!data || !data.ok) throw new Error('respuesta invalida');
-      var rows = (data.rm||[]).map(mapSheetRow).concat((data.puerto||[]).map(mapSheetRow));
-      if(rows.length===0) return;
-      state.programacion = rows;
-      try{ localStorage.setItem(PROGRAMACION_CACHE_KEY, JSON.stringify(rows)); }catch(e){}
-      renderAll();
-    })
-    .catch(function(err){ console.warn('No se pudo actualizar programación desde Excel', err); });
-}
+function fmtFechaISO(v){ if(!v) return ''; try{ return new Date(v).toISOString().slice(0,10); }catch(e){ return String(v).slice(0,10); } } function fmtHoraISO(v){ if(!v) return ''; try{ var d=new Date(v); return String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0'); }catch(e){ return String(v); } } function mapRetiroRow(r,i){ return { id:'r'+i, fecha:fmtFechaISO(r.Fecha), deposito:r.Deposito||'', tipo:r.Tipo||'', transporte:r.Transporte||'', chofer:r.Chofer||'', tracto:r.Tracto||'', rampla:r.Rampla||'', gps:r.GPS||'' }; } function mapDevolRow(r,i){ return { id:'d'+i, fecha:fmtFechaISO(r.Fecha), deposito:r.Deposito||'', transporte:r.Transporte||'', contenedor:r.Contenedor||'', eir:r.EIR||'' }; } function mapCunaRow(c,i){ return { id:'c'+i, anden:c.Anden||'', patente:c.Patente||'', fecha:fmtFechaISO(c.Fecha), hora:fmtHoraISO(c.Hora), estado:(c.Estado==='En anden'?'En andén':(c.Estado||'En andén')), foto:c.Foto||'' }; } function loadProgramacionFromSheet(){ fetch(SHEETS_WEBAPP_URL + '?action=todo').then(function(r){ return r.json(); }).then(function(data){ if(!data || !data.ok) throw new Error('respuesta invalida'); var rows = (data.rm||[]).map(mapSheetRow).concat((data.puerto||[]).map(mapSheetRow)); if(rows.length>0){ state.programacion = rows; try{ localStorage.setItem(PROGRAMACION_CACHE_KEY, JSON.stringify(rows)); }catch(e){} } if(data.retiro){ state.retiros = data.retiro.map(mapRetiroRow).reverse(); } if(data.devolucion){ state.devoluciones = data.devolucion.map(mapDevolRow).reverse(); } if(data.cunas){ state.cunas = data.cunas.map(mapCunaRow).reverse(); } renderAll(); }).catch(function(err){ console.warn('No se pudo actualizar datos desde Excel', err); }); }
 
 var MOBILE_FORM = new URLSearchParams(location.search).get('form');
 function mobileFormDone(msg){
@@ -1595,8 +1583,8 @@ function saveRetiro(){
     rampla:el('f-retiro-rampla').value, gps:el('f-retiro-gps').value
   });
   sendToSheet('retiro', {
-    fecha:fecha, deposito:el('f-retiro-deposito').value, tipo_contenedor:el('f-retiro-tipo').value,
-    transporte:el('f-retiro-transportista').value, chofer:chofer, tracto:el('f-retiro-tracto').value,
+    fecha:fecha, deposito:el('f-retiro-deposito').value, tipo:el('f-retiro-tipo').value,
+    transportista:el('f-retiro-transportista').value, chofer:chofer, tracto:el('f-retiro-tracto').value,
     rampla:el('f-retiro-rampla').value, gps:el('f-retiro-gps').value
   });
   if(document.body.classList.contains('mobile-mode')){ mobileFormDone('Asignación de retiro guardada correctamente.'); return; }
@@ -1613,7 +1601,7 @@ function saveDevol(){
     contenedor:cont, eir:eir
   });
   sendToSheet('devolucion', {
-    fecha:fecha, deposito:el('f-devol-deposito').value, transporte:el('f-devol-transportista').value,
+    fecha:fecha, deposito:el('f-devol-deposito').value, transportista:el('f-devol-transportista').value,
     contenedor:cont, eir:eir
   });
   if(document.body.classList.contains('mobile-mode')){ mobileFormDone('Devolución registrada correctamente.'); return; }
