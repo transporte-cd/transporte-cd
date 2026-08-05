@@ -525,6 +525,11 @@ body.mobile-mode .mobile-only-brand{display:inline}
   <div class="modal">
     <div class="modal-head"><h3><span class="mobile-only-brand">Transporte CD · </span>Nueva devolución · vacío naviero</h3><button class="close-x" onclick="closeModal('devol')"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body">
+      <div style="display:flex;gap:4px;background:var(--gray-bg);border-radius:8px;padding:4px;margin-bottom:14px">
+        <button type="button" class="btn btn-sm btn-primary" id="btn-devol-mode-individual" onclick="setDevolMode('individual')" style="flex:1;justify-content:center">Individual</button>
+        <button type="button" class="btn btn-sm" id="btn-devol-mode-masiva" onclick="setDevolMode('masiva')" style="flex:1;justify-content:center">Carga masiva</button>
+      </div>
+      <div id="devol-panel-individual">
       <div class="form-grid">
         <div class="field"><label>Fecha *</label><input type="date" id="f-devol-fecha"></div>
         <div class="field"><label>Contenedor *</label><input type="text" id="f-devol-contenedor" placeholder="MSCU1234567"></div>
@@ -532,8 +537,24 @@ body.mobile-mode .mobile-only-brand{display:inline}
         <div class="field full"><label>Transportista *</label><select id="f-devol-transportista"></select></div>
         <div class="field full"><label>EIR *</label><input type="text" id="f-devol-eir" placeholder="Número de comprobante EIR"></div>
       </div>
+      </div>
+      <div id="devol-panel-masiva" style="display:none">
+        <p style="margin:0 0 10px;font-size:12.5px;color:var(--text-2)">Sube un CSV o pega varias filas con columnas: <code>fecha, deposito, transportista, contenedor, eir</code>. Cada fila válida se guarda directo en el Excel, igual que el formulario individual.</p>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <button type="button" class="btn btn-sm" onclick="downloadPlantillaDevolMasiva()"><i class="fa-solid fa-file-arrow-down"></i> Descargar plantilla</button>
+          <label class="btn btn-sm" style="cursor:pointer">
+            <i class="fa-solid fa-upload"></i> Subir CSV
+            <input type="file" accept=".csv,text/csv" style="display:none" onchange="handleDevolMasivaFile(this)">
+          </label>
+        </div>
+        <div class="field full">
+          <label>Datos (CSV)</label>
+          <textarea id="f-devol-masiva-text" rows="6" style="width:100%;font-size:12px;font-family:monospace;padding:8px;border:1px solid var(--border);border-radius:8px" placeholder="fecha,deposito,transportista,contenedor,eir"></textarea>
+        </div>
+        <div id="devol-masiva-result"></div>
+      </div>
     </div>
-    <div class="modal-foot"><button class="btn" onclick="closeModal('devol')">Cancelar</button><button class="btn btn-primary" onclick="saveDevol()">Guardar devolución</button></div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal('devol')">Cancelar</button><button class="btn btn-primary" id="btn-devol-foot-action" onclick="devolFootAction()">Guardar devolución</button></div>
   </div>
 </div>
 
@@ -1526,7 +1547,7 @@ function populateSelect(id, opts, withEmpty){
   s.innerHTML = (withEmpty?'<option value="">Seleccionar...</option>':'') + opts.map(function(o){ return '<option value="'+o+'">'+o+'</option>'; }).join('');
 }
 
-function openModal(type){ el('modal-'+type).classList.add('show'); }
+function openModal(type){ el('modal-'+type).classList.add('show'); if(type==='devol') setDevolMode('individual'); }
 function closeModal(type){ el('modal-'+type).classList.remove('show'); }
 
 var SHEETS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbw5HTYFDxUnYIacC_6LDjk_qsQnaBTa0b20OahGAptdGr8jT0Jt1O693-EVTuDfFrye/exec';
@@ -1609,6 +1630,71 @@ function saveDevol(){
   renderAll();
   showToast('Devolución registrada');
 }
+
+function setDevolMode(m){
+  DEVOL_MODE = m;
+  el('devol-panel-individual').style.display = m==='individual' ? 'block' : 'none';
+  el('devol-panel-masiva').style.display = m==='masiva' ? 'block' : 'none';
+  el('btn-devol-mode-individual').className = 'btn btn-sm' + (m==='individual' ? ' btn-primary' : '');
+  el('btn-devol-mode-masiva').className = 'btn btn-sm' + (m==='masiva' ? ' btn-primary' : '');
+  el('btn-devol-foot-action').textContent = m==='individual' ? 'Guardar devolución' : 'Procesar y guardar todo';
+}
+function devolFootAction(){
+  if(DEVOL_MODE==='masiva'){ procesarMasivaDevol(); } else { saveDevol(); }
+}
+function downloadPlantillaDevolMasiva(){
+  var header = 'fecha,deposito,transportista,contenedor,eir';
+  var ejemplo1 = '2026-08-04,CIS,77.248.307-4 GLOBAL LOGISTIC,MSCU1234567,EIR12345';
+  var ejemplo2 = '2026-08-04,SITRANS SAN ANTONIO,76107615-9 BYD,TCLU7654321,EIR67890';
+  var blob = new Blob([header+'\n'+ejemplo1+'\n'+ejemplo2], {type:'text/csv;charset=utf-8;'});
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'plantilla_devolucion_vacios.csv';
+  link.click();
+}
+function handleDevolMasivaFile(input){
+  var file = input.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){ el('f-devol-masiva-text').value = e.target.result; };
+  reader.readAsText(file);
+}
+function procesarMasivaDevol(){
+  var raw = el('f-devol-masiva-text').value.trim();
+  if(!raw){ showToast('Pega o carga datos primero'); return; }
+  var lines = raw.split(/\r?\n/).map(function(l){return l.trim();}).filter(function(l){return l.length>0;});
+  if(lines.length && /^fecha[,;]/i.test(lines[0])) lines.shift();
+  if(!lines.length){ showToast('No hay filas para procesar'); return; }
+
+  var okCount=0, errors=[];
+  lines.forEach(function(line, idx){
+    var parts = line.split(/[,\t;]/).map(function(p){return p.trim().replace(/^"|"$/g,'');});
+    var d = {fecha:parts[0]||'', deposito:parts[1]||'', transportista:parts[2]||'', contenedor:parts[3]||'', eir:parts[4]||''};
+    if(!d.fecha || !d.deposito || !d.transportista || !d.contenedor || !d.eir){
+      errors.push('Fila '+(idx+1)+' ('+(d.contenedor||'?')+'): faltan campos obligatorios');
+      return;
+    }
+    state.devoluciones.unshift({id:Date.now()+idx, fecha:d.fecha, deposito:d.deposito, transporte:d.transportista, contenedor:d.contenedor, eir:d.eir});
+    sendToSheet('devolucion', {fecha:d.fecha, deposito:d.deposito, transportista:d.transportista, contenedor:d.contenedor, eir:d.eir});
+    okCount++;
+  });
+
+  el('devol-masiva-result').innerHTML = '<div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:'+(errors.length?'var(--amber-bg)':'var(--green-bg)')+'">'+
+    '<p style="margin:0;font-size:12.5px;font-weight:700;color:'+(errors.length?'var(--amber-text)':'var(--green-text)')+'">'+okCount+' devolución(es) guardadas'+(errors.length?', '+errors.length+' con error':'')+'</p>'+
+    (errors.length? '<ul style="margin:6px 0 0;padding-left:18px;font-size:11.5px;color:var(--danger-text)">'+errors.map(function(e){return '<li>'+e+'</li>';}).join('')+'</ul>' : '')+
+    '</div>';
+
+  if(okCount>0){
+    if(document.body.classList.contains('mobile-mode')){
+      mobileFormDone(okCount+' devolución(es) registradas correctamente.');
+    } else {
+      renderAll();
+      showToast(okCount+' devoluciones guardadas');
+      if(errors.length===0){ el('f-devol-masiva-text').value=''; el('devol-masiva-result').innerHTML=''; }
+    }
+  }
+}
+var DEVOL_MODE = 'individual';
 
 var toastTimer;
 function showToast(msg){
