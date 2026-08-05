@@ -337,6 +337,12 @@ body.mobile-mode .mobile-only-brand{display:inline}
       <!-- RETIRO PUERTO -->
       <section class="page" id="page-retiro">
         <div class="grid-kpi" id="retiro-kpis"></div>
+        <div class="row-grid">
+          <div class="card">
+            <div class="card-head"><div><h3>Retiros por depósito</h3><p>Conteo por depósito / extraportuario</p></div></div>
+            <div class="card-body"><div style="position:relative;height:220px"><canvas id="chart-retiro-dep"></canvas></div></div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-head">
             <div><h3>Asignaciones retiro puerto</h3><p>Registro de retiros e ingresos/salidas de depósito</p></div>
@@ -383,6 +389,12 @@ body.mobile-mode .mobile-only-brand{display:inline}
       <!-- DEVOLUCION VACIOS -->
       <section class="page" id="page-devolucion">
         <div class="grid-kpi" id="devol-kpis"></div>
+        <div class="row-grid">
+          <div class="card">
+            <div class="card-head"><div><h3>Devoluciones por depósito</h3><p>Conteo por lugar de devolución</p></div></div>
+            <div class="card-body"><div style="position:relative;height:220px"><canvas id="chart-devol-dep"></canvas></div></div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-head">
             <div><h3>Devoluciones vacíos navieros</h3><p>Registro de devolución de contenedores vacíos</p></div>
@@ -574,7 +586,7 @@ body.mobile-mode .mobile-only-brand{display:inline}
         </div>
         <div class="field full">
           <label>Datos (CSV)</label>
-          <textarea id="f-retiro-masiva-text" rows="6" style="width:100%;font-size:12px;font-family:monospace;padding:8px;border:1px solid var(--border);border-radius:8px" placeholder="fecha,tipo,deposito,transportista,chofer,rut,tracto,rampla,gps"></textarea>
+          <textarea id="f-retiro-masiva-text" rows="6" style="width:100%;font-size:12px;font-family:monospace;padding:8px;border:1px solid var(--border);border-radius:8px" placeholder="fecha;tipo;deposito;transportista;chofer;rut;tracto;rampla;gps"></textarea>
         </div>
         <div id="retiro-masiva-result"></div>
       </div>
@@ -612,7 +624,7 @@ body.mobile-mode .mobile-only-brand{display:inline}
         </div>
         <div class="field full">
           <label>Datos (CSV)</label>
-          <textarea id="f-devol-masiva-text" rows="6" style="width:100%;font-size:12px;font-family:monospace;padding:8px;border:1px solid var(--border);border-radius:8px" placeholder="fecha,deposito,transportista,contenedor,eir"></textarea>
+          <textarea id="f-devol-masiva-text" rows="6" style="width:100%;font-size:12px;font-family:monospace;padding:8px;border:1px solid var(--border);border-radius:8px" placeholder="fecha;deposito;transportista;contenedor;eir"></textarea>
         </div>
         <div id="devol-masiva-result"></div>
       </div>
@@ -1152,6 +1164,16 @@ function renderRetiro(){
   el('tbl-retiro').innerHTML = tblHtml(['Fecha','Depósito','Tipo','Transporte','Chofer','Tracto','Rampla','GPS'], rows.map(function(r){
     return [r.fecha, r.deposito, '<span class="chip">'+r.tipo+'</span>', shortT(r.transporte), r.chofer, r.tracto, r.rampla, r.gps];
   }));
+
+  var retiroDepCounts = {};
+  rows.forEach(function(r){ retiroDepCounts[r.deposito] = (retiroDepCounts[r.deposito]||0)+1; });
+  var retiroDepEntries = Object.entries(retiroDepCounts).sort(function(a,b){return b[1]-a[1];}).slice(0,10);
+  if(chartRetiroDep) chartRetiroDep.destroy();
+  chartRetiroDep = new Chart(el('chart-retiro-dep'), {
+    type:'bar',
+    data:{ labels:retiroDepEntries.map(function(e){return e[0];}), datasets:[{ data:retiroDepEntries.map(function(e){return e[1];}), backgroundColor:'#E30613', borderRadius:4, maxBarThickness:26 }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ beginAtZero:true, ticks:{stepSize:1} } } }
+  });
 }
 
 function renderDevol(){
@@ -1166,6 +1188,16 @@ function renderDevol(){
   el('tbl-devol').innerHTML = tblHtml(['Fecha','Depósito','Transporte','Contenedor','EIR'], rows.map(function(r){
     return [r.fecha, r.deposito, shortT(r.transporte), r.contenedor, r.eir];
   }));
+
+  var devolDepCounts = {};
+  rows.forEach(function(r){ devolDepCounts[r.deposito] = (devolDepCounts[r.deposito]||0)+1; });
+  var devolDepEntries = Object.entries(devolDepCounts).sort(function(a,b){return b[1]-a[1];}).slice(0,10);
+  if(chartDevolDep) chartDevolDep.destroy();
+  chartDevolDep = new Chart(el('chart-devol-dep'), {
+    type:'bar',
+    data:{ labels:devolDepEntries.map(function(e){return e[0];}), datasets:[{ data:devolDepEntries.map(function(e){return e[1];}), backgroundColor:'#E30613', borderRadius:4, maxBarThickness:26 }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ beginAtZero:true, ticks:{stepSize:1} } } }
+  });
 }
 
 var trackMap = null;
@@ -1478,6 +1510,7 @@ function resumenEstado(){
 }
 
 var chartEstado, chartDeposito;
+var chartRetiroDep, chartDevolDep;
 function renderMetricas(){
   var all = state.programacion;
   var total = all.length;
@@ -1753,7 +1786,7 @@ function devolFootAction(){
   if(DEVOL_MODE==='masiva'){ procesarMasivaDevol(); } else { saveDevol(); }
 }
 function downloadPlantillaDevolMasiva(){
-  var header = 'fecha,deposito,transportista,contenedor,eir';
+  var header = 'fecha;deposito;transportista;contenedor;eir';
   var blob = new Blob([header+'\n'], {type:'text/csv;charset=utf-8;'});
   var link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
@@ -1816,7 +1849,7 @@ function retiroFootAction(){
   if(RETIRO_MODE==='masiva'){ procesarMasivaRetiro(); } else { saveRetiro(); }
 }
 function downloadPlantillaRetiroMasiva(){
-  var header = 'fecha,tipo,deposito,transportista,chofer,rut,tracto,rampla,gps';
+  var header = 'fecha;tipo;deposito;transportista;chofer;rut;tracto;rampla;gps';
   var blob = new Blob([header+'\n'], {type:'text/csv;charset=utf-8;'});
   var link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
