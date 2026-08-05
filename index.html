@@ -238,19 +238,7 @@ body.mobile-mode .mobile-only-brand{display:inline}
 
           <div class="mini" id="dash-mini"></div>
 
-          <div class="row-grid">
-            <div class="card">
-              <div class="card-head"><div><h3>Asignaciones retiro puerto</h3><p>Últimos registros</p></div>
-                <button class="btn btn-sm" onclick="go('retiro')">Ver todo <i class="fa-solid fa-arrow-right"></i></button></div>
-              <div class="card-body tblwrap"><table id="tbl-dash-retiro"></table></div>
-            </div>
-            <div class="card">
-              <div class="card-head"><div><h3>Devoluciones vacíos navieros</h3><p>Últimos registros</p></div>
-                <button class="btn btn-sm" onclick="go('devolucion')">Ver todo <i class="fa-solid fa-arrow-right"></i></button></div>
-              <div class="card-body tblwrap"><table id="tbl-dash-devol"></table></div>
-            </div>
           </div>
-        </div>
 
         <div class="dash-section">
           <div class="area-head"><span class="ico" style="background:var(--amber-bg);color:var(--amber-text)"><i class="fa-solid fa-store"></i></span><div><h2>Abastecimiento tienda (AT)</h2><p>Turnos de andén y recepción de cuñas</p></div></div>
@@ -1032,12 +1020,6 @@ function renderDashboard(){
     '<div class="minicard" onclick="go(\'retiro\')"><div class="h"><i class="fa-solid fa-arrow-right-arrow-left"></i> Retiro puerto</div><div class="n">'+state.retiros.length+'</div><div class="go">Ver <i class="fa-solid fa-arrow-right"></i></div></div>'+
     '<div class="minicard" onclick="go(\'devolucion\')"><div class="h"><i class="fa-solid fa-box-open"></i> Devolución</div><div class="n">'+state.devoluciones.length+'</div><div class="go">Ver <i class="fa-solid fa-arrow-right"></i></div></div>';
 
-  el('tbl-dash-retiro').innerHTML = tblHtml(['Fecha','Depósito','Tipo','Transporte','Chofer'], state.retiros.slice(0,5).map(function(r){
-    return [r.fecha, r.deposito, r.tipo, shortT(r.transporte), r.chofer];
-  }));
-  el('tbl-dash-devol').innerHTML = tblHtml(['Fecha','Depósito','Contenedor','EIR'], state.devoluciones.slice(0,5).map(function(r){
-    return [r.fecha, r.deposito, r.contenedor, r.eir];
-  }));
 
   var cunasTotal = state.cunas.length;
   var cunasEnAnden = state.cunas.filter(function(c){return c.estado==='En andén';}).length;
@@ -1095,6 +1077,21 @@ function tblHtml(cols, rows){
   return h+b;
 }
 
+function estadoSelectHtmlProg(r, region){
+  var opts = ESTADOS_RETIRO.map(function(e){ return '<option value="'+e+'"'+(e===r.estado?' selected':'')+'>'+e+'</option>'; }).join('');
+  return '<select class="badge b-'+r.estado+'" data-id="'+r.id+'" data-region="'+region+'" onchange="actualizarEstadoProg(this)">'+opts+'</select>';
+}
+function actualizarEstadoProg(selectEl){
+  var id = Number(selectEl.getAttribute('data-id'));
+  var region = selectEl.getAttribute('data-region');
+  var nuevoEstado = selectEl.value;
+  ESTADOS_RETIRO.forEach(function(e){ selectEl.classList.remove('b-'+e); });
+  selectEl.classList.add('b-'+nuevoEstado);
+  var r = state.programacion.find(function(x){ return x.id===id && x.region===region; });
+  if(r) r.estado = nuevoEstado;
+  var sheetName = region==='RM' ? 'Programacion RM' : 'Programacion Puerto';
+  sendToSheet('prog_estado', { sheetName: sheetName, id: id, estado: nuevoEstado });
+}
 function renderProg(region){
   var lc = region.toLowerCase();
   var depSelProg = el(lc+'-filtro-dep');
@@ -1136,7 +1133,7 @@ function renderProg(region){
     : ['#','Depósito','Contenedor','Peso','Tipo','CC','Demurrage','Transporte','Destino','Etapa','Estado'];
 
   var body = rows.map(function(r){
-    var estadoCell = '<span class="badge b-'+r.estado+'">'+r.estado+'</span>';
+    var estadoCell = estadoSelectHtmlProg(r, region);
     var etapa = getEtapa(r.contenedor);
     var etapaCell = '<span class="etapa-tag '+etapa.cls+'"><i class="fa-solid '+etapa.icon+'"></i> '+etapa.label+'</span>';
     var transCell = shortT(r.transporte);
