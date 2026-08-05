@@ -194,7 +194,6 @@ body.mobile-mode .mobile-only-brand{display:inline}
       <a data-page="progPuerto"><i class="fa-solid fa-anchor"></i>Programación Puerto<span class="count" id="cnt-puerto">0</span></a>
       <a data-page="retiro"><i class="fa-solid fa-arrow-right-arrow-left"></i>Retiro Puerto<span class="count" id="cnt-retiro">0</span></a>
       <a data-page="devolucion"><i class="fa-solid fa-box-open"></i>Devolución Vacíos<span class="count" id="cnt-devol">0</span></a>
-      <a data-page="seguimiento"><i class="fa-solid fa-location-crosshairs"></i>Seguimiento en vivo<span class="count" id="cnt-seg">0</span></a>
 
       <div class="nav-section">Abastecimiento tienda (AT)</div>
       <a data-page="atDashboard"><i class="fa-solid fa-store"></i>Dashboard AT</a>
@@ -206,6 +205,7 @@ body.mobile-mode .mobile-only-brand{display:inline}
 
       <div class="nav-section">Sistema</div>
       <a data-page="qr"><i class="fa-solid fa-qrcode"></i>Códigos QR</a>
+      <a data-page="seguimiento"><i class="fa-solid fa-location-crosshairs"></i>Seguimiento en vivo<span class="count" id="cnt-seg">0</span></a>
     </nav>
     <div class="sidebar-foot">CD Lo Espejo · Cerrillos<br>v0.1 — maqueta funcional</div>
   </aside>
@@ -1665,9 +1665,7 @@ function devolFootAction(){
 }
 function downloadPlantillaDevolMasiva(){
   var header = 'fecha,deposito,transportista,contenedor,eir';
-  var ejemplo1 = '2026-08-04,CIS,77.248.307-4 GLOBAL LOGISTIC,MSCU1234567,EIR12345';
-  var ejemplo2 = '2026-08-04,SITRANS SAN ANTONIO,76107615-9 BYD,TCLU7654321,EIR67890';
-  var blob = new Blob([header+'\n'+ejemplo1+'\n'+ejemplo2], {type:'text/csv;charset=utf-8;'});
+  var blob = new Blob([header+'\n'], {type:'text/csv;charset=utf-8;'});
   var link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = 'plantilla_devolucion_vacios.csv';
@@ -1730,9 +1728,7 @@ function retiroFootAction(){
 }
 function downloadPlantillaRetiroMasiva(){
   var header = 'fecha,tipo,deposito,transportista,chofer,rut,tracto,rampla,gps';
-  var ejemplo1 = '2026-08-04,Ingreso,CIS,77.248.307-4 GLOBAL LOGISTIC,Juan Pérez,12.345.678-9,AB-CD-12,EF-GH-34,Rampla + Tracto';
-  var ejemplo2 = '2026-08-04,Salida,SITRANS SAN ANTONIO,76107615-9 BYD,María Soto,9.876.543-2,IJ-KL-56,MN-OP-78,Solo Tracto';
-  var blob = new Blob([header+'\n'+ejemplo1+'\n'+ejemplo2], {type:'text/csv;charset=utf-8;'});
+  var blob = new Blob([header+'\n'], {type:'text/csv;charset=utf-8;'});
   var link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = 'plantilla_retiro_puerto.csv';
