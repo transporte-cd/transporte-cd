@@ -1079,18 +1079,29 @@ function tblHtml(cols, rows){
 
 function estadoSelectHtmlProg(r, region){
   var opts = ESTADOS_RETIRO.map(function(e){ return '<option value="'+e+'"'+(e===r.estado?' selected':'')+'>'+e+'</option>'; }).join('');
-  return '<select class="badge b-'+r.estado+'" data-id="'+r.id+'" data-region="'+region+'" onchange="actualizarEstadoProg(this)">'+opts+'</select>';
+  var dataAttrs = region==='RM'
+    ? 'data-contenedor="'+encodeURIComponent(r.contenedor||'')+'" data-fecha="'+encodeURIComponent(r.fecha||'')+'" data-hora="'+encodeURIComponent(r.hora||'')+'"'
+    : 'data-id="'+r.id+'"';
+  return '<select class="badge b-'+r.estado+'" data-region="'+region+'" '+dataAttrs+' onchange="actualizarEstadoProg(this)">'+opts+'</select>';
 }
 function actualizarEstadoProg(selectEl){
-  var id = Number(selectEl.getAttribute('data-id'));
   var region = selectEl.getAttribute('data-region');
   var nuevoEstado = selectEl.value;
   ESTADOS_RETIRO.forEach(function(e){ selectEl.classList.remove('b-'+e); });
   selectEl.classList.add('b-'+nuevoEstado);
-  var r = state.programacion.find(function(x){ return x.id===id && x.region===region; });
-  if(r) r.estado = nuevoEstado;
-  var sheetName = region==='RM' ? 'Programacion RM' : 'Programacion Puerto';
-  sendToSheet('prog_estado', { sheetName: sheetName, id: id, estado: nuevoEstado });
+  if(region==='RM'){
+    var contenedor = decodeURIComponent(selectEl.getAttribute('data-contenedor')||'');
+    var fecha = decodeURIComponent(selectEl.getAttribute('data-fecha')||'');
+    var hora = decodeURIComponent(selectEl.getAttribute('data-hora')||'');
+    var r = state.programacion.find(function(x){ return x.region==='RM' && x.contenedor===contenedor && x.fecha===fecha && x.hora===hora; });
+    if(r) r.estado = nuevoEstado;
+    sendToSheet('prog_estado', { sheetName: 'Programacion RM', contenedor: contenedor, fecha: fecha, hora: hora, estado: nuevoEstado });
+  } else {
+    var id = Number(selectEl.getAttribute('data-id'));
+    var r2 = state.programacion.find(function(x){ return x.id===id && x.region===region; });
+    if(r2) r2.estado = nuevoEstado;
+    sendToSheet('prog_estado', { sheetName: 'Programacion Puerto', id: id, estado: nuevoEstado });
+  }
 }
 function renderProg(region){
   var lc = region.toLowerCase();
@@ -1727,7 +1738,7 @@ function actualizarEstadoRetiro(selectEl){
   var r = state.retiros.find(function(x){ return x.timestamp===ts; });
   if(r) r.estado = nuevoEstado;
   sendToSheet('retiro_estado', { timestamp: ts, estado: nuevoEstado });
-} function mapDevolRow(r,i){ return { id:'d'+i, fecha:fmtFechaISO(r.Fecha), deposito:r.Deposito||'', transporte:r.Transporte||'', contenedor:r.Contenedor||'', eir:r.EIR||'' }; } function mapCunaRow(c,i){ return { id:'c'+i, anden:c.Anden||'', patente:c.Patente||'', fecha:fmtFechaISO(c.Fecha), hora:fmtHoraISO(c.Hora), estado:(c.Estado==='En anden'?'En andén':(c.Estado||'En andén')), foto:c.Foto||'' }; } function mapRMRow(r,i){ return { id:'rm'+i, region:'RM', fecha:fmtFechaISO(r.FECHA), hora:fmtHoraISO(r.HORARIO), deposito:r.OPERADOR||'', tipo:r.TIPO||'', cap:Number(r.CAPACIDAD)||0, contenedor:r.CONTENEDOR||'', peso:Number(r.PESO)||0, demurrage:Number(r.DEMURRAGE)||0, transporte:r.TRANSPORTE||'', bodega:r.BODEGA||'', servicio:'', destino:'', cc:'', estado:'PENDIENTE' }; } function loadProgramacionFromSheet(){ fetch(SHEETS_WEBAPP_URL + '?action=todo').then(function(r){ return r.json(); }).then(function(data){ if(!data || !data.ok) throw new Error('respuesta invalida'); var rows = (data.rm||[]).map(mapRMRow).concat((data.puerto||[]).map(mapSheetRow)); if(rows.length>0){ state.programacion = rows; try{ localStorage.setItem(PROGRAMACION_CACHE_KEY, JSON.stringify(rows)); }catch(e){} } if(data.retiro){ state.retiros = data.retiro.map(mapRetiroRow).reverse(); } if(data.devolucion){ state.devoluciones = data.devolucion.map(mapDevolRow).reverse(); } if(data.cunas){ state.cunas = data.cunas.map(mapCunaRow).reverse(); } renderAll(); }).catch(function(err){ console.warn('No se pudo actualizar datos desde Excel', err); }); }
+} function mapDevolRow(r,i){ return { id:'d'+i, fecha:fmtFechaISO(r.Fecha), deposito:r.Deposito||'', transporte:r.Transporte||'', contenedor:r.Contenedor||'', eir:r.EIR||'' }; } function mapCunaRow(c,i){ return { id:'c'+i, anden:c.Anden||'', patente:c.Patente||'', fecha:fmtFechaISO(c.Fecha), hora:fmtHoraISO(c.Hora), estado:(c.Estado==='En anden'?'En andén':(c.Estado||'En andén')), foto:c.Foto||'' }; } function mapRMRow(r,i){ return { id:'rm'+i, region:'RM', fecha:fmtFechaISO(r.FECHA), hora:fmtHoraISO(r.HORARIO), deposito:r.OPERADOR||'', tipo:r.TIPO||'', cap:Number(r.CAPACIDAD)||0, contenedor:r.CONTENEDOR||'', peso:Number(r.PESO)||0, demurrage:Number(r.DEMURRAGE)||0, transporte:r.TRANSPORTE||'', bodega:r.BODEGA||'', servicio:'', destino:'', cc:'', estado:r.Estado||'PENDIENTE' }; } function loadProgramacionFromSheet(){ fetch(SHEETS_WEBAPP_URL + '?action=todo').then(function(r){ return r.json(); }).then(function(data){ if(!data || !data.ok) throw new Error('respuesta invalida'); var rows = (data.rm||[]).map(mapRMRow).concat((data.puerto||[]).map(mapSheetRow)); if(rows.length>0){ state.programacion = rows; try{ localStorage.setItem(PROGRAMACION_CACHE_KEY, JSON.stringify(rows)); }catch(e){} } if(data.retiro){ state.retiros = data.retiro.map(mapRetiroRow).reverse(); } if(data.devolucion){ state.devoluciones = data.devolucion.map(mapDevolRow).reverse(); } if(data.cunas){ state.cunas = data.cunas.map(mapCunaRow).reverse(); } renderAll(); }).catch(function(err){ console.warn('No se pudo actualizar datos desde Excel', err); }); }
 
 var MOBILE_FORM = new URLSearchParams(location.search).get('form');
 function mobileFormDone(msg){
