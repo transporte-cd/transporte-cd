@@ -60,6 +60,11 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Hel
 .page.active{display:block}
 
 .grid-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:20px}
+.dash-section{margin-bottom:28px}
+.area-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.area-head .ico{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.area-head h2{font-size:15.5px;margin:0;font-weight:800}
+.area-head p{margin:1px 0 0;font-size:12px;color:var(--text-2)}
 .kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
 .kpi .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .kpi .lbl{font-size:12.5px;color:var(--text-2);font-weight:600}
@@ -226,20 +231,57 @@ body.mobile-mode .mobile-only-brand{display:inline}
 
       <!-- DASHBOARD -->
       <section class="page active" id="page-dashboard">
-        <div class="grid-kpi" id="dash-kpis"></div>
+        <div class="dash-section">
+          <div class="area-head"><span class="ico" style="background:var(--blue-bg);color:var(--blue-text)"><i class="fa-solid fa-boxes-stacked"></i></span><div><h2>Contenedores</h2><p>Programación de retiros, devoluciones y demurrage</p></div></div>
+          <div class="grid-kpi" id="dash-kpis"></div>
 
-        <div class="mini" id="dash-mini"></div>
+          <div class="mini" id="dash-mini"></div>
 
-        <div class="row-grid">
-          <div class="card">
-            <div class="card-head"><div><h3>Asignaciones retiro puerto</h3><p>Últimos registros</p></div>
-              <button class="btn btn-sm" onclick="go('retiro')">Ver todo <i class="fa-solid fa-arrow-right"></i></button></div>
-            <div class="card-body tblwrap"><table id="tbl-dash-retiro"></table></div>
+          <div class="row-grid">
+            <div class="card">
+              <div class="card-head"><div><h3>Asignaciones retiro puerto</h3><p>Últimos registros</p></div>
+                <button class="btn btn-sm" onclick="go('retiro')">Ver todo <i class="fa-solid fa-arrow-right"></i></button></div>
+              <div class="card-body tblwrap"><table id="tbl-dash-retiro"></table></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><h3>Devoluciones vacíos navieros</h3><p>Últimos registros</p></div>
+                <button class="btn btn-sm" onclick="go('devolucion')">Ver todo <i class="fa-solid fa-arrow-right"></i></button></div>
+              <div class="card-body tblwrap"><table id="tbl-dash-devol"></table></div>
+            </div>
           </div>
-          <div class="card">
-            <div class="card-head"><div><h3>Devoluciones vacíos navieros</h3><p>Últimos registros</p></div>
-              <button class="btn btn-sm" onclick="go('devolucion')">Ver todo <i class="fa-solid fa-arrow-right"></i></button></div>
-            <div class="card-body tblwrap"><table id="tbl-dash-devol"></table></div>
+        </div>
+
+        <div class="dash-section">
+          <div class="area-head"><span class="ico" style="background:var(--amber-bg);color:var(--amber-text)"><i class="fa-solid fa-store"></i></span><div><h2>Abastecimiento tienda (AT)</h2><p>Turnos de andén y recepción de cuñas</p></div></div>
+          <div class="grid-kpi" id="dash-at-kpis"></div>
+          <div class="row-grid">
+            <div class="card">
+              <div class="card-head"><div><h3>Cuñas por estado</h3><p>Distribución actual</p></div>
+                <button class="btn btn-sm" onclick="go('atDashboard')">Ver todo <i class="fa-solid fa-arrow-right"></i></button></div>
+              <div class="card-body"><div style="position:relative;height:180px"><canvas id="chart-dash-at-estado"></canvas></div></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><h3>Últimos registros</h3></div>
+                <button class="btn btn-sm" onclick="go('cunas')">Ver todo <i class="fa-solid fa-arrow-right"></i></button></div>
+              <div class="card-body tblwrap"><table id="tbl-dash-at-recientes"></table></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-section">
+          <div class="area-head"><span class="ico" style="background:var(--green-bg);color:var(--green-text)"><i class="fa-solid fa-van-shuttle"></i></span><div><h2>Despacho a domicilio (DAD)</h2><p>Reparto de pedidos a clientes finales</p></div></div>
+          <div class="grid-kpi" id="dash-dad-kpis"></div>
+          <div class="row-grid">
+            <div class="card">
+              <div class="card-head"><div><h3>Despachos por estado</h3><p>Distribución actual</p></div>
+                <button class="btn btn-sm" onclick="go('dadDashboard')">Ver todo <i class="fa-solid fa-arrow-right"></i></button></div>
+              <div class="card-body"><div style="position:relative;height:180px"><canvas id="chart-dash-dad-estado"></canvas></div></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><h3>Últimos despachos</h3></div>
+                <button class="btn btn-sm" onclick="go('despachos')">Ver todo <i class="fa-solid fa-arrow-right"></i></button></div>
+              <div class="card-body tblwrap"><table id="tbl-dash-dad-recientes"></table></div>
+            </div>
           </div>
         </div>
       </section>
@@ -983,6 +1025,52 @@ function renderDashboard(){
   el('tbl-dash-devol').innerHTML = tblHtml(['Fecha','Depósito','Contenedor','EIR'], state.devoluciones.slice(0,5).map(function(r){
     return [r.fecha, r.deposito, r.contenedor, r.eir];
   }));
+
+  var cunasTotal = state.cunas.length;
+  var cunasEnAnden = state.cunas.filter(function(c){return c.estado==='En andén';}).length;
+  var cunasLiberadas = state.cunas.filter(function(c){return c.estado==='Liberado';}).length;
+  var cunasConFoto = state.cunas.filter(function(c){return c.foto;}).length;
+
+  el('dash-at-kpis').innerHTML =
+    kpiCard('Cuñas registradas', cunasTotal, 'turnos de andén', 'fa-clipboard-list', {bg:'var(--blue-bg)',fg:'var(--blue-text)'}) +
+    kpiCard('En andén ahora', cunasEnAnden, 'camiones cargando/descargando', 'fa-truck-ramp-box', {bg:'var(--amber-bg)',fg:'var(--amber-text)'}) +
+    kpiCard('Liberadas', cunasLiberadas, 'andén disponible', 'fa-circle-check', {bg:'var(--green-bg)',fg:'var(--green-text)'}) +
+    kpiCard('Con foto adjunta', cunasConFoto, 'de '+cunasTotal+' registros', 'fa-camera', {bg:'var(--gray-bg)',fg:'var(--gray-text)'});
+
+  el('tbl-dash-at-recientes').innerHTML = tblHtml(['Andén','Patente','Fecha','Hora','Estado'], state.cunas.slice(0,5).map(function(c){
+    return [c.anden, c.patente, c.fecha, c.hora, '<span class="badge '+(c.estado==='En andén'?'b-PENDIENTE':'b-ENTREGADO')+'">'+c.estado+'</span>'];
+  }));
+
+  if(chartDashAtEstado) chartDashAtEstado.destroy();
+  chartDashAtEstado = new Chart(el('chart-dash-at-estado'), {
+    type:'doughnut',
+    data:{ labels:['En andén','Liberado'], datasets:[{ data:[cunasEnAnden, cunasLiberadas], backgroundColor:['#F5A623','#2E9E5B'], borderWidth:2, borderColor:'#fff' }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'62%' }
+  });
+
+  var dadAll = state.despachos;
+  var dadColors = {Pendiente:'#f79009','En reparto':'#2e90fa',Entregado:'#12b76a',Fallido:'#e4322f'};
+  var dadRes = ESTADOS_DESPACHO.map(function(e){ return {estado:e, cantidad:dadAll.filter(function(d){return d.estado===e;}).length}; });
+  var dadEnReparto = dadAll.filter(function(d){return d.estado==='En reparto';}).length;
+  var dadEntregados = dadAll.filter(function(d){return d.estado==='Entregado';}).length;
+  var dadFallidos = dadAll.filter(function(d){return d.estado==='Fallido';}).length;
+
+  el('dash-dad-kpis').innerHTML =
+    kpiCard('Total despachos', dadAll.length, 'programados', 'fa-van-shuttle', {bg:'var(--blue-bg)',fg:'var(--blue-text)'}) +
+    kpiCard('En reparto', dadEnReparto, 'en ruta al cliente', 'fa-truck-fast', {bg:'var(--amber-bg)',fg:'var(--amber-text)'}) +
+    kpiCard('Entregados', dadEntregados, 'confirmados', 'fa-circle-check', {bg:'var(--green-bg)',fg:'var(--green-text)'}) +
+    kpiCard('Fallidos', dadFallidos, 'requieren reprogramar', 'fa-triangle-exclamation', {bg:'var(--danger-bg)',fg:'var(--danger-text)'});
+
+  el('tbl-dash-dad-recientes').innerHTML = tblHtml(['Cliente','Dirección','Comuna','Estado','Fecha'], dadAll.slice(0,5).map(function(d){
+    return [d.cliente, d.direccion, d.comuna, '<span class="badge" style="background:'+dadColors[d.estado]+'22;color:'+dadColors[d.estado]+'">'+d.estado+'</span>', d.fecha];
+  }));
+
+  if(chartDashDadEstado) chartDashDadEstado.destroy();
+  chartDashDadEstado = new Chart(el('chart-dash-dad-estado'), {
+    type:'doughnut',
+    data:{ labels:dadRes.map(function(r){return r.estado;}), datasets:[{ data:dadRes.map(function(r){return r.cantidad;}), backgroundColor:dadRes.map(function(r){return dadColors[r.estado];}), borderWidth:2, borderColor:'#fff' }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'62%' }
+  });
 }
 
 function shortT(t){ if(!t) return '<span style="color:var(--text-3)">Sin asignar</span>'; var p=t.split(' '); return p.slice(1).join(' '); }
@@ -1487,6 +1575,7 @@ function saveCuna(){
 }
 
 var chartDadEstado, chartDadComuna;
+var chartDashAtEstado, chartDashDadEstado;
 function renderDAD(){
   var all = state.despachos;
   var total = all.length;
