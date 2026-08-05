@@ -504,6 +504,11 @@ body.mobile-mode .mobile-only-brand{display:inline}
   <div class="modal">
     <div class="modal-head"><h3><span class="mobile-only-brand">Transporte CD · </span>Nueva asignación · retiro puerto</h3><button class="close-x" onclick="closeModal('retiro')"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body">
+      <div style="display:flex;gap:4px;background:var(--gray-bg);border-radius:8px;padding:4px;margin-bottom:14px">
+        <button type="button" class="btn btn-sm btn-primary" id="btn-retiro-mode-individual" onclick="setRetiroMode('individual')" style="flex:1;justify-content:center">Individual</button>
+        <button type="button" class="btn btn-sm" id="btn-retiro-mode-masiva" onclick="setRetiroMode('masiva')" style="flex:1;justify-content:center">Carga masiva</button>
+      </div>
+      <div id="retiro-panel-individual">
       <div class="form-grid">
         <div class="field"><label>Fecha *</label><input type="date" id="f-retiro-fecha"></div>
         <div class="field"><label>Tipo *</label><select id="f-retiro-tipo"><option>Ingreso</option><option>Salida</option></select></div>
@@ -515,8 +520,24 @@ body.mobile-mode .mobile-only-brand{display:inline}
         <div class="field"><label>Patente rampla *</label><input type="text" id="f-retiro-rampla" placeholder="EF-GH-34"></div>
         <div class="field full"><label>GPS *</label><select id="f-retiro-gps"><option>Rampla + Tracto</option><option>Solo Tracto</option><option>Solo Rampla</option><option>Sin GPS</option></select></div>
       </div>
+      </div>
+      <div id="retiro-panel-masiva" style="display:none">
+        <p style="margin:0 0 10px;font-size:12.5px;color:var(--text-2)">Sube un CSV o pega varias filas con columnas: <code>fecha, tipo, deposito, transportista, chofer, rut, tracto, rampla, gps</code>. Cada fila válida se guarda directo en el Excel, igual que el formulario individual.</p>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <button type="button" class="btn btn-sm" onclick="downloadPlantillaRetiroMasiva()"><i class="fa-solid fa-file-arrow-down"></i> Descargar plantilla</button>
+          <label class="btn btn-sm" style="cursor:pointer">
+            <i class="fa-solid fa-upload"></i> Subir CSV
+            <input type="file" accept=".csv,text/csv" style="display:none" onchange="handleRetiroMasivaFile(this)">
+          </label>
+        </div>
+        <div class="field full">
+          <label>Datos (CSV)</label>
+          <textarea id="f-retiro-masiva-text" rows="6" style="width:100%;font-size:12px;font-family:monospace;padding:8px;border:1px solid var(--border);border-radius:8px" placeholder="fecha,tipo,deposito,transportista,chofer,rut,tracto,rampla,gps"></textarea>
+        </div>
+        <div id="retiro-masiva-result"></div>
+      </div>
     </div>
-    <div class="modal-foot"><button class="btn" onclick="closeModal('retiro')">Cancelar</button><button class="btn btn-primary" onclick="saveRetiro()">Guardar asignación</button></div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal('retiro')">Cancelar</button><button class="btn btn-primary" id="btn-retiro-foot-action" onclick="retiroFootAction()">Guardar asignación</button></div>
   </div>
 </div>
 
@@ -1547,7 +1568,7 @@ function populateSelect(id, opts, withEmpty){
   s.innerHTML = (withEmpty?'<option value="">Seleccionar...</option>':'') + opts.map(function(o){ return '<option value="'+o+'">'+o+'</option>'; }).join('');
 }
 
-function openModal(type){ el('modal-'+type).classList.add('show'); if(type==='devol') setDevolMode('individual'); }
+function openModal(type){ el('modal-'+type).classList.add('show'); if(type==='devol') setDevolMode('individual'); if(type==='retiro') setRetiroMode('individual'); }
 function closeModal(type){ el('modal-'+type).classList.remove('show'); }
 
 var SHEETS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbw5HTYFDxUnYIacC_6LDjk_qsQnaBTa0b20OahGAptdGr8jT0Jt1O693-EVTuDfFrye/exec';
@@ -1695,6 +1716,71 @@ function procesarMasivaDevol(){
   }
 }
 var DEVOL_MODE = 'individual';
+
+function setRetiroMode(m){
+  RETIRO_MODE = m;
+  el('retiro-panel-individual').style.display = m==='individual' ? 'block' : 'none';
+  el('retiro-panel-masiva').style.display = m==='masiva' ? 'block' : 'none';
+  el('btn-retiro-mode-individual').className = 'btn btn-sm' + (m==='individual' ? ' btn-primary' : '');
+  el('btn-retiro-mode-masiva').className = 'btn btn-sm' + (m==='masiva' ? ' btn-primary' : '');
+  el('btn-retiro-foot-action').textContent = m==='individual' ? 'Guardar asignación' : 'Procesar y guardar todo';
+}
+function retiroFootAction(){
+  if(RETIRO_MODE==='masiva'){ procesarMasivaRetiro(); } else { saveRetiro(); }
+}
+function downloadPlantillaRetiroMasiva(){
+  var header = 'fecha,tipo,deposito,transportista,chofer,rut,tracto,rampla,gps';
+  var ejemplo1 = '2026-08-04,Ingreso,CIS,77.248.307-4 GLOBAL LOGISTIC,Juan Pérez,12.345.678-9,AB-CD-12,EF-GH-34,Rampla + Tracto';
+  var ejemplo2 = '2026-08-04,Salida,SITRANS SAN ANTONIO,76107615-9 BYD,María Soto,9.876.543-2,IJ-KL-56,MN-OP-78,Solo Tracto';
+  var blob = new Blob([header+'\n'+ejemplo1+'\n'+ejemplo2], {type:'text/csv;charset=utf-8;'});
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'plantilla_retiro_puerto.csv';
+  link.click();
+}
+function handleRetiroMasivaFile(input){
+  var file = input.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){ el('f-retiro-masiva-text').value = e.target.result; };
+  reader.readAsText(file);
+}
+function procesarMasivaRetiro(){
+  var raw = el('f-retiro-masiva-text').value.trim();
+  if(!raw){ showToast('Pega o carga datos primero'); return; }
+  var lines = raw.split(/\r?\n/).map(function(l){return l.trim();}).filter(function(l){return l.length>0;});
+  if(lines.length && /^fecha[,;]/i.test(lines[0])) lines.shift();
+  if(!lines.length){ showToast('No hay filas para procesar'); return; }
+
+  var okCount=0, errors=[];
+  lines.forEach(function(line, idx){
+    var parts = line.split(/[,\t;]/).map(function(p){return p.trim().replace(/^"|"$/g,'');});
+    var d = {fecha:parts[0]||'', tipo:parts[1]||'', deposito:parts[2]||'', transportista:parts[3]||'', chofer:parts[4]||'', rut:parts[5]||'', tracto:parts[6]||'', rampla:parts[7]||'', gps:parts[8]||''};
+    if(!d.fecha || !d.chofer || !d.rut){
+      errors.push('Fila '+(idx+1)+' ('+(d.chofer||'?')+'): faltan campos obligatorios');
+      return;
+    }
+    state.retiros.unshift({id:Date.now()+idx, fecha:d.fecha, deposito:d.deposito, tipo:d.tipo, transporte:d.transportista, chofer:d.chofer, tracto:d.tracto, rampla:d.rampla, gps:d.gps});
+    sendToSheet('retiro', {fecha:d.fecha, deposito:d.deposito, tipo:d.tipo, transportista:d.transportista, chofer:d.chofer, tracto:d.tracto, rampla:d.rampla, gps:d.gps});
+    okCount++;
+  });
+
+  el('retiro-masiva-result').innerHTML = '<div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:'+(errors.length?'var(--amber-bg)':'var(--green-bg)')+'">'+
+    '<p style="margin:0;font-size:12.5px;font-weight:700;color:'+(errors.length?'var(--amber-text)':'var(--green-text)')+'">'+okCount+' asignación(es) guardadas'+(errors.length?', '+errors.length+' con error':'')+'</p>'+
+    (errors.length? '<ul style="margin:6px 0 0;padding-left:18px;font-size:11.5px;color:var(--danger-text)">'+errors.map(function(e){return '<li>'+e+'</li>';}).join('')+'</ul>' : '')+
+    '</div>';
+
+  if(okCount>0){
+    if(document.body.classList.contains('mobile-mode')){
+      mobileFormDone(okCount+' asignación(es) de retiro registradas correctamente.');
+    } else {
+      renderAll();
+      showToast(okCount+' asignaciones de retiro guardadas');
+      if(errors.length===0){ el('f-retiro-masiva-text').value=''; el('retiro-masiva-result').innerHTML=''; }
+    }
+  }
+}
+var RETIRO_MODE = 'individual';
 
 var toastTimer;
 function showToast(msg){
